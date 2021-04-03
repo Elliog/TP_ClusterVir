@@ -4,5 +4,5 @@
 
 Dépot des fichiers pour partage :
   - Documentation d'installation : ClusterVir_HOW_TO.txt
-  - Script de déploiement : CluterVir.sh
+  - Script de déploiement : ClusterVir.sh
   - Carte mentale du projet : TP.png
