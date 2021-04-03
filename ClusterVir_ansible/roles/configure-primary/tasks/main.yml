@@ -1,0 +1,12 @@
+---
+
+- name: Clone TP repo from github
+  ansible.builtin.git:
+    repo: https://github.com/Elliog/TP_ClusterVir.git
+    dest: /root
+
+- name: Make the shell script exectuable
+  ansible.builtin.shell: chmod +x /root/ClusterVir1.sh
+
+- name: Execute the shell script and log
+  ansible.builtin.shell: /root/ClusterVir1.sh >> ClusterVir1log.txt

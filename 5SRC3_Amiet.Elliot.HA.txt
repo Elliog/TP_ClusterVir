@@ -1,0 +1,153 @@
+#########################################
+# Virtualisation et Clustering - HOW TO #
+#########################################
+
+Elliot AMIET - 5SRC3
+03/04/2021
+
+#########################################
+Prérequis :
+	- Accès plateforme P3G : http://ui.xaoc02.p3g.cloud
+	- Connexion VPN à P3G -> OpenVPN community edition
+	- Connexion Internet 
+	- Logiciel de connexion SSH -> mRemoteNG
+	- Connaissance de base en linux
+	- Machine possédant Ansible
+
+#########################################
+Table des matières :
+	1 - Configuration des serveurs 
+		1.1 - Installation de l'OS
+		1.2 - Configuration réseau
+	2 - Déploiement des scripts avec Ansible
+	3 - Points d'amélioration
+	4 - Contact
+
+#########################################
+1 - Configuration des serveurs :
+	1.1 - Installation de l'OS
+
+La première étape est de se connecter aux serveurs pour commencer l'installation :
+Pour cela il vous faut le dossier.zip de connexion au VPN fourni par le professeur.
+Déposer les 3 fichiers dézippés dans votre répertoire OpenVPN community edition.
+
+Quand le VPN est connecté, accéder à http://ui.xaoc02.p3g.cloud.
+	'troubleshoot: si rien ne s'affiche, rajouter dans votre configuration IPv4 le DNS : 192.168.254.131.'
+
+Loggez-vous avec l'identifiant donné par le prof.
+Rendez-vous sur l'onglet Config panel :
+	Dans 'Home' vous devriez avoir les deux serveurs qui vous sont alloués.
+
+Accédez à la console de chaque serveur et suivez la procédure ci-dessous, à l'identique pour les 2.
+
+Suivez l'assistant d'installation et remplissez suivant les données vous correspondant.
+# Network :
+	hostname : 10.254.2.x   /25
+	gateway  : 10.254.2.125 /25 
+	DNS 	 : 192.168.254.1 192.168.254.131 
+
+# Partitionnement :
+	Disques : 2 x 10Go
+	
+	sda1 (RAID 1: sda1+sdb1 : /dev/md0)
+	 /boot 	: ext2  500Mo 
+	
+	sda2 (LVM 10Go) (RAID 1 : sda2+sdb2 : /dev/md1)
+	/		: btrfs  	(/dev/VGROOT/lv_root)  	3Go
+	/var	: xfs	 	(/dev/VGROOT/lv_var)   	2Go
+	swap	: swap	 	(/dev/VGROOT/lv_swap)   500Mo
+
+# Login :
+	user / User&Me2
+	root / Root&Me2
+
+Si l'installation est réussie, le serveur redémarre, loggez-vous avec le compte root.
+
+#########################################
+	1.2 - Configuration réseau
+
+Vérifiez la configuration réseau nécessaire au bon fonctionnement :
+
+#vim /etc/network/interfaces
+---
+iface eth0 inet static
+	address 10.254.2.x/25
+	gateway 10.254.2.125
+	dns-nameservers  192.168.254.131 192.168.254.1 10.254.2.125
+	dns-search esgi.local
+---
+
+#vim /etc/resolv.conf
+---
+search esgi.local
+nameserver 192.168.254.1
+nameserver 192.168.254.131
+nameserver 8.8.8.8
+---
+
+Vérifiez la configuration des dépots :
+#vim /etc/apt/sources.list
+
+deb http://deb.debian.org/debian buster main contrib
+deb-src http://deb.debian.org/debian buster main
+
+deb http://deb.debian.org/debian-security/ buster/updates main
+deb-src http://deb.debian.org/debian-security/ buster/updates main
+
+deb http://deb.debian.org/debian buster-updates main
+deb-src http://deb.debian.org/debian buster-updates main
+
+-> Commentez la ligne : 'deb cdrom'
+
+Relancer le service network :
+#/etc/init.d/networking restart
+#ifup eth0
+
+Vérifiez votre connexion et le dépot:
+#ping 8.8.8.8
+	'troubleshoot: si KO, cmd: 'ip a ' et vérifiez que eth0 a bien l'IPv4 que vous avez mis.'
+#ping google.fr
+	'troubleshoot: si KO, le problème est peut-être le DNS.'
+#apt update
+	'troubleshoot: si KO, vérifiez le fichier /etc/apt/sources.list.'
+
+#########################################
+	2 - Déploiement des scripts avec Ansible
+
+Sur votre machine possédant ansible, téléchargez le git : 
+#git clone https://github.com/Elliog/TP_ClusterVir.git
+
+Puis modifiez les hosts suivant votre configuration.
+Ensuite lancer le playbook :
+#ansible-playbook -i production.ini deploy-cluster.yml
+
+Il n'y a plus qu'à attendre la fin du script qui installe, dans cet ordre :
+
+	1- PACKAGES INSTALLATION 		SRV1 / SRV2
+	2- SET UP SERVER 				SRV1 / SRV2
+		Prompt 						SRV1 / SRV2
+		Alias						SRV1 / SRV2
+		User 						SRV1 / SRV2
+	3- CONFIGURE SSH 				SRV1 / SRV2
+	4- INSTALL & SET UP CHEAT 		SRV1 / SRV2
+	5- SET UP MARIADB				SRV1
+	6- SET UP NGINX					SRV1
+	7- SET UP PHP					SRV1
+	8- INSTALL COMPOSER 			SRV1
+	9- INSTALL BOOKSTACK			SRV1
+   10- INSTALL DRBD					SRV1 / SRV2
+   11- INSTALL HEARTBEAT			SRV1 / SRV2
+
+
+#########################################
+	3 - Points d'amélioration
+
+- Ne plus utiliser les scripts shell (scripts lourds et peu lisibles pour les non-initiés linux) et faire tout directement via Ansible.
+
+- Changer l'ordre d'installation, en effet, en suivant le cours on commence par installer les services puis ensuite la configuration du cluster, pour éviter tout problème il serait intéressant de commencer par DRBD et HEARTBEAT.
+
+- Documentation sur BookStack au lieu d'un .txt.
+
+- Option permettant d'attendre un serveur si celui n'a pas fini d'installer BRBD, pour éviter les problèmes de synchronisation.
+
+#########################################
