@@ -16,4 +16,4 @@ Dépot des fichiers pour partage :
 
 
 Roadmap :
-  - Ne plus utiliser le srcipt shell et faire tout via ansible
+  - Ne plus utiliser le script shell et faire tout via ansible
